@@ -25,23 +25,24 @@ This is called G-code, for GEORGE-code presumably
 
 #### Operators
 
-| Symbol | For | write |
-| `+` | `a + b` | `a b +` |
-| `-` | `a - b` | `a b -` |
-| `×` | `ab` | `a b ×` |
-| `÷` | `a÷b` | `a b ÷` |
-| `neg` | `-a` | `a neg` |
-| `mod` | `|a|` | `a mod` |
-| `max` | `max(a,b)` | `a b max` |
-| `log` | `log_e(a)` | `a log` |
-| `exp` | `e^a` | `a exp` |
-| `pow` | `a^b` | `a b pow` |
-| `rem` | `a%b` | `a b rem` |
-| `√` | `√a` | `a √` |
-| `sin` | `sin(a)` | `a sin` |
-| `cos` | `cos(a)` | `a cos` |
-| `dup` | | |
-| `rev` | | |
+| Symbol | For        | write     |
+| ------ | ---------- | --------- |
+| `+`    | `a + b`    | `a b +`   |
+| `-`    | `a - b`    | `a b -`   |
+| `×`    | `ab`       | `a b ×`   |
+| `÷`    | `a÷b`      | `a b ÷`   |
+| `neg`  | `-a`       | `a neg`   |
+| `mod`  | `\|a\|`    | `a mod`   |
+| `max`  | `max(a,b)` | `a b max` |
+| `log`  | `log_e(a)` | `a log`   |
+| `exp`  | `e^a`      | `a exp`   |
+| `pow`  | `a^b`      | `a b pow` |
+| `rem`  | `a%b`      | `a b rem` |
+| `√`    | `√a`       | `a √`     |
+| `sin`  | `sin(a)`   | `a sin`   |
+| `cos`  | `cos(a)`   | `a cos`   |
+| `dup`  | e          | e         |
+| `rev`  | e          | e         |
 
 Notes:
 
@@ -58,7 +59,7 @@ For `(4.3)÷(16-x)` write `4.3, 16 x - ÷`
 
 ### 1.3 Variables
 
-An alphabet of 32 letters is provided, including `a-z` except `o` and some Greek letters.
+An alphabet of 32 letters is provided, including `a-z` except `o` and some Greek letters: `abcdefghijklmnΘpqrstuvwxyzαβυλμω`
 
 There are three separate ranges of storage locations:
 
@@ -180,5 +181,3 @@ To run Newton's method for square root until successive values differ by not mor
   - Double suffixed: the second suffix is interpreted modulo 32 and does _not_ cause spill. The first suffix is mod 128 as spills through `a`, `b`, `c`, `d` in the same way as single suffxes
 - (Not implemented) The symbol `wait` performs no operation but halts the program until a manual signal is given, displaying the top number of the stack while paused.
 - (Not implemented) Symbol "I" for taking input from keys; maybe this could be program argv?
-
-abcdefghijklmnΘpqrstuvwxyzαβυλμω
