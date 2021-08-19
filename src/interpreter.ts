@@ -6,6 +6,11 @@ export default function interpret(code: string) {
   int.fullExec();
 }
 
+interface ProgramPointer {
+  currentRoutine: Routine;
+  programIndex: number;
+}
+
 class Interpreter {
   stack: number[] = [];
   unsuffixed_mem: number[] = Array(32).fill(0);
@@ -13,6 +18,7 @@ class Interpreter {
   matrix_mem: number[] = Array(32 * 32 * 4).fill(0);
   currentRoutine: Routine;
   programIndex: number = 0;
+  callStack: ProgramPointer[] = [];
   // true if `>` or `=` has been encountered since the last jmp
   isConditional = false;
 
@@ -96,7 +102,12 @@ class Interpreter {
       case "rep_end":
         throw "Execution of rep is not yet implemented";
       case "goto_sub_call":
-        throw "Subroutines are not yet implemented. How did you get here without the ↓ operator?";
+        const prev = this.callStack.pop();
+        if (prev === undefined) {
+          throw "Impossible situation: reached end of subroutine without entering subroutine";
+        }
+        this.currentRoutine = prev.currentRoutine;
+        this.programIndex = prev.programIndex;
     }
     this.programIndex += 1;
   }
@@ -114,26 +125,50 @@ class Interpreter {
     return this.stack[this.stack.length - n];
   }
 
+  getSkipLocation() {
+    // skip numbers are treated modulo 32
+    this.assertMinStackSize(1);
+    return rem(this.stack.pop() as number, 32);
+  }
+
+  shouldSkip() {
+    // Not sure how GEORGE is supposed to check truthiness in general
+    // as the manual only states 0 → falsey and -1 → truthey
+    // Even val&1 !== 0 would be appropriate
+    const shouldSkip = !this.isConditional || this.stack.pop() !== 0;
+    this.isConditional = false;
+    return shouldSkip;
+  }
+
   applyOperator(op: string) {
+    let skipLabel: number;
     switch (op) {
       case "↑":
-        // skip numbers are treated modulo 32
-        this.assertMinStackSize(1);
-        const skipLabel = rem(this.stack.pop() as number, 32);
-        // Not sure how GEORGE is supposed to check truthiness in general
-        // as the manual only states 0 → falsey and -1 → truthey
-        // Even val&1 !== 0 would be appropriate
-        if (!this.isConditional || this.stack.pop() !== 0) {
+        skipLabel = this.getSkipLocation();
+        if (this.shouldSkip()) {
           const skipLocation = this.currentRoutine.jmpIndices.get(skipLabel);
           if (skipLocation === undefined) {
             throw `No jmp location for label ${skipLabel}. I don't know where to jump. If your friends jump off a bridge, would you jump too?`;
           }
           this.programIndex = skipLocation;
         }
-        this.isConditional = false;
         break;
       case "↓":
-        throw "The subroutine operator ↑ is not yet implemented";
+        skipLabel = this.getSkipLocation();
+        if (this.shouldSkip()) {
+          if (skipLabel in this.routines) {
+            this.callStack.push({
+              currentRoutine: this.currentRoutine,
+              programIndex: this.programIndex,
+            });
+            // programIndex = -1 because it gets implemented at the end of the while loop
+            // and we need it to start at 0
+            this.programIndex = -1;
+            this.currentRoutine = this.routines[skipLabel];
+          } else {
+            throw `No subroutine exists with label ${skipLabel}`;
+          }
+        }
         break;
       case ";":
         this.assertMinStackSize(1, op);

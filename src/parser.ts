@@ -60,6 +60,7 @@ type Action =
 export type Routine = {
   actions: Action[];
   jmpIndices: Map<number, number>;
+  name: string;
 };
 export interface Routines {
   main: Routine;
@@ -142,6 +143,7 @@ export default function parse(code: string) {
     main: {
       actions: [],
       jmpIndices: new Map(),
+      name: "main",
     },
   };
   let currentRoutine: Routine | null = routines.main;
@@ -161,6 +163,7 @@ export default function parse(code: string) {
         currentRoutine = {
           actions: [],
           jmpIndices: new Map(),
+          name: "" + labelValue,
         };
         routines[labelValue] = currentRoutine;
       } else {
@@ -171,7 +174,6 @@ export default function parse(code: string) {
           // pointer to index after the label
           currentRoutine.actions.length - 1
         );
-        break;
       }
     } else if (currentRoutine === null) {
       throw parseError(token, "Expected `*` to begin subroutine");
