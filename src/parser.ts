@@ -4,8 +4,8 @@ import PeekableLexer from "moo-peekable-lexer";
 // prettier-ignore
 const operators = [
   "-","+","×","÷",";","√","↑","↓",">","=","~","&","∨",
-  "neg","mod","max","dup","rev","log","exp","pow","rem","sin",
-  "cos","wait","R","(P)"
+  "neg","mod","max","dup","rev","log","exp","pow","rem",
+  "sin","cos","wait","R","(P)"
 ]
 
 const tokenTable = {
@@ -24,7 +24,7 @@ const tokenTable = {
     match: /\s/,
     lineBreaks: true,
   },
-  letter: /[a-nΘp-zαβυλμω]/,
+  letter: /[a-nΘp-zαβγλμω]/,
 } as const;
 
 const mooLexer = moo.compile(tokenTable);
@@ -60,8 +60,8 @@ type Action =
   | {
       type: "goto_sub_call";
     };
-type Routine = Action[];
-interface Routines {
+export type Routine = Action[];
+export interface Routines {
   main: Routine;
   [k: string]: Routine;
 }
@@ -245,9 +245,9 @@ export default function parse(code: string) {
 }
 
 function pipeValue(pipe: string) {
-  if (pipe == "|") {
+  if (pipe === "|") {
     return 1;
-  } else if (pipe == "‖") {
+  } else if (pipe === "‖") {
     return 2;
   }
 }

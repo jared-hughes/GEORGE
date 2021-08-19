@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import yargs from "yargs/yargs";
-import parse from "./parser.js";
+import interpret from "./interpreter";
 
 interface Arguments {
   [x: string]: unknown;
@@ -20,4 +20,4 @@ const options: Arguments = yargs(process.argv.slice(2))
   .usage("Example usage: node cli.js -c '2, 3 + (P)'")
   .parseSync();
 
-console.log(parse(options.cmd));
+interpret(options.cmd);
