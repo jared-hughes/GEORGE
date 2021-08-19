@@ -47,11 +47,11 @@ type Action =
   | {
       type: "print" | "read" | "assign" | "access";
       suffix_count: 0 | 1 | 2;
-      letter: string;
+      letter: number;
     }
   | {
       type: "rep_start";
-      letter: string;
+      letter: number;
     }
   | {
       type: "rep_end";
@@ -96,7 +96,7 @@ export default function parse(code: string) {
     const letter = lexer.next();
     if (letter?.type !== "letter") throw "Expected letter";
     if (lexer.next()?.type !== "rparen") throw "Expected closing paren on name";
-    return letter.value;
+    return getLetterIndex(letter.value);
   }
 
   function parseLabelValue() {
@@ -180,7 +180,7 @@ export default function parse(code: string) {
           currentRoutine.push({
             type: "access",
             suffix_count: val,
-            letter: letterToken.value,
+            letter: getLetterIndex(letterToken.value),
           });
         }
         break;
@@ -197,7 +197,7 @@ export default function parse(code: string) {
         currentRoutine.push({
           type: "access",
           suffix_count: 0,
-          letter: token.value,
+          letter: getLetterIndex(token.value),
         });
         break;
       case "rep":
@@ -250,4 +250,13 @@ function pipeValue(pipe: string) {
   } else if (pipe === "‖") {
     return 2;
   }
+}
+
+const letters = "abcdefghijklmnθpqrstuvwxyzαβγλμω";
+function getLetterIndex(letter: string) {
+  const index = letters.indexOf(letter);
+  if (index === -1) {
+    throw "Programming Error: unhandled letter " + letter;
+  }
+  return index;
 }

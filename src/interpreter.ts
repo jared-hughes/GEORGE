@@ -50,7 +50,7 @@ class Interpreter {
         break;
       case "access":
         if (action.suffix_count === 0) {
-          this.stack.push(this.unsuffixed_mem[getLetterIndex(action.letter)]);
+          this.stack.push(this.unsuffixed_mem[action.letter]);
         } else if (action.suffix_count === 1) {
           this.assertMinStackSize(1),
             this.vector_mem[
@@ -66,8 +66,7 @@ class Interpreter {
       case "assign":
         if (action.suffix_count === 0) {
           this.assertMinStackSize(1);
-          this.unsuffixed_mem[getLetterIndex(action.letter)] =
-            this.stackPeekN(1);
+          this.unsuffixed_mem[action.letter] = this.stackPeekN(1);
         } else if (action.suffix_count === 1) {
           this.assertMinStackSize(2);
           this.vector_mem[getVectorIndex(action.letter, this.stackPeekN(1))] =
@@ -85,7 +84,7 @@ class Interpreter {
         break;
       case "print":
         if (action.suffix_count === 0) {
-          console.log(this.unsuffixed_mem[getLetterIndex(action.letter)]);
+          console.log(this.unsuffixed_mem[action.letter]);
         } else {
           throw "Suffixed (vector or matrix) print is not yet implemented";
         }
@@ -196,21 +195,12 @@ const monadicOperators: { [K: string]: (a: number) => number } = {
   cos: (a) => Math.cos(a),
 };
 
-const letters = "abcdefghijklmnθpqrstuvwxyzαβγλμω";
-function getLetterIndex(letter: string) {
-  const index = letters.indexOf(letter);
-  if (index === -1) {
-    throw "Programming Error: unhandled letter " + letter;
-  }
-  return index;
+function getVectorIndex(letter: number, index: number) {
+  return rem(32 * letter + index, 1024);
 }
 
-function getVectorIndex(letter: string, index: number) {
-  return rem(32 * getLetterIndex(letter) + index, 1024);
-}
-
-function getMatrixIndex(letter: string, i: number, j: number) {
-  return rem(1024 * getLetterIndex(letter) + 32 * i, 4096) + rem(j, 32);
+function getMatrixIndex(letter: number, i: number, j: number) {
+  return rem(1024 * letter + 32 * i, 4096) + rem(j, 32);
 }
 
 function rem(a: number, b: number) {
