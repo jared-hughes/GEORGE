@@ -1,4 +1,4 @@
-import moo from "moo";
+import moo, { Token } from "moo";
 import PeekableLexer from "moo-peekable-lexer";
 import { string } from "yargs";
 
@@ -67,6 +67,22 @@ export interface Routines {
 }
 
 export default function parse(code: string) {
+  function parseError(token: Token, type: string) {
+    return new Error(lexer.formatError(token, type));
+  }
+
+  function eofError(parsing?: string) {
+    return new Error(`EOF while parsing ${parsing || "something"}.`);
+  }
+
+  function nextRequired(parsing?: string) {
+    const token = lexer.next();
+    if (token === undefined) {
+      throw eofError(parsing);
+    }
+    return token;
+  }
+
   function peekNonWhitespace() {
     let token = lexer.peek();
     while (token?.type === "whitespace") {
@@ -76,33 +92,46 @@ export default function parse(code: string) {
     return token;
   }
 
-  function nextNonWhitespace(mandatory = true) {
+  function nextNonWhitespace() {
     let token = lexer.next();
     // Skip whitespace
     while (token?.type === "whitespace") {
       token = lexer.next();
     }
-    if (mandatory && token === undefined) {
-      throw "EOF while parsing something";
+    return token;
+  }
+
+  function nextNonWhitespaceRequired(parsing?: string) {
+    const token = nextNonWhitespace();
+    if (token === undefined) {
+      throw eofError(parsing);
     }
     return token;
   }
 
   function parseName(skipLParen = false) {
     if (!skipLParen) {
-      if (nextNonWhitespace()?.type !== "lparen") throw "Expected name";
+      const lparen = nextNonWhitespaceRequired("name");
+      if (lparen?.type !== "lparen") {
+        throw parseError(lparen, "Expected `(` starting a name");
+      }
     }
-    // We don't want to allow spaces, so use lexer.next() instead of next()
-    const letter = lexer.next();
-    if (letter?.type !== "letter") throw "Expected letter";
-    if (lexer.next()?.type !== "rparen") throw "Expected closing paren on name";
+    // We don't want to allow spaces, so use nextRequired() instead of nextNonWhitespaceRequired()
+    const letter = nextRequired("name");
+    if (letter.type !== "letter") {
+      throw parseError(letter, "Expected letter in name");
+    }
+    const rparen = nextRequired("name");
+    if (rparen.type !== "rparen") {
+      throw parseError(rparen, "Expected `)` closing a name");
+    }
     return getLetterIndex(letter.value);
   }
 
   function parseLabelValue() {
-    const labelToken = nextNonWhitespace();
+    const labelToken = nextNonWhitespaceRequired("label");
     if (labelToken?.type !== "number") {
-      throw "Label expects number following it";
+      throw parseError(labelToken, "Label requires a number");
     }
     return parseFloat(labelToken.value);
   }
@@ -123,10 +152,10 @@ export default function parse(code: string) {
 
   let token;
 
-  while ((token = nextNonWhitespace(false))) {
+  while ((token = nextNonWhitespace())) {
     const tokenType = token.type as keyof typeof tokenTable;
-    if (currentRoutine === null) {
-      if (tokenType === "asterisk") {
+    if (tokenType === "asterisk") {
+      if (currentRoutine === null) {
         // declare a subroutine
         const labelValue = parseLabelValue();
         currentRoutine = {
@@ -135,11 +164,6 @@ export default function parse(code: string) {
         };
         routines[labelValue] = currentRoutine;
       } else {
-        throw "Symbol outside routine";
-      }
-    }
-    switch (tokenType) {
-      case "asterisk":
         // Subroutine declaration handled above
         const labelValue = parseLabelValue();
         currentRoutine.jmpIndices.set(
@@ -148,6 +172,11 @@ export default function parse(code: string) {
           currentRoutine.actions.length - 1
         );
         break;
+      }
+    } else if (currentRoutine === null) {
+      throw parseError(token, "Expected `*` to begin subroutine");
+    }
+    switch (tokenType) {
       case "operator":
         currentRoutine.actions.push({
           type: "operator",
@@ -161,7 +190,10 @@ export default function parse(code: string) {
           actions[actions.length - 1].type === "number" &&
           !isPrevComma
         ) {
-          throw "Oopsie, a comma is missing between two numbers";
+          throw parseError(
+            token,
+            "Oopsie, a comma is missing between two numbers"
+          );
         }
         actions.push({
           type: "number",
@@ -185,8 +217,10 @@ export default function parse(code: string) {
             letter: parseName(),
           });
         } else {
-          const letterToken = nextNonWhitespace();
-          if (letterToken?.type !== "letter") throw "Expected letter";
+          const letterToken = nextNonWhitespaceRequired();
+          if (letterToken?.type !== "letter") {
+            throw parseError(letterToken, "Expected letter");
+          }
           currentRoutine.actions.push({
             type: "access",
             suffix_count: val,
@@ -202,7 +236,7 @@ export default function parse(code: string) {
         });
         break;
       case "rparen":
-        throw "Unmatched right paren";
+        throw parseError(token, "Unmatched right paren");
       case "letter":
         currentRoutine.actions.push({
           type: "access",
@@ -230,7 +264,10 @@ export default function parse(code: string) {
           if (isMainRoutine) {
             isMainRoutine = false;
             if (lexer.peek() === undefined) {
-              throw "Unnecessary `]` closing the main routine. Perhaps a `rep` is not closed.";
+              throw parseError(
+                token,
+                "Unnecessary `]` closing the main routine. Probably a `rep` is not closed."
+              );
             }
           } else {
             currentRoutine.actions.push({
@@ -248,7 +285,7 @@ export default function parse(code: string) {
   }
 
   if (currentRoutine !== null && currentRoutine !== routines.main) {
-    throw "Unclosed subroutine";
+    throw eofError("subroutine");
   }
 
   return routines;
