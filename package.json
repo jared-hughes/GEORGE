@@ -1,0 +1,14 @@
+{
+  "name": "george_lang",
+  "version": "0.1.0",
+  "description": "G E O R G E",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nearley": "^2.20.1"
+  }
+}

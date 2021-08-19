@@ -71,20 +71,24 @@ The entire number store is random access (any location may be accessed at any ti
 
 Suffixes are written first and separated by a single bar for single suffixes or a double-bar for double suffixes:
 
-For `x_14` write `14 | x`
-For `c_6,31` write `6,31 ‖ c`
-For `a_{i+j}` write `i j + | a`
-For `a_4,{x+1}` write `4 x 1 + ‖ a`
-For `a_{j_k}` write `k | j | a`
+For `x_14`, write `14 | x`
 
-TODO: is there a double-bar unicode?
+For `c_6,31`, write `6 , 31 ‖ c`
+
+For `a_{i+j}`, write `i j + | a`
+
+For `a_4,{x+1}`, write `4 x 1 + ‖ a`
+
+For `a_{j_k}`, write `k | j | a`
 
 ### 1.4 Names
 
 When a number has been calculated, it can be inserted to the number store by using a "name" symbol such as `(c)`.
 
 For `c ← a + b` write `a b + (c) ;`
+
 For `x_i ← y_3` write `3 y i | (x) ;`
+
 For `b_{i,j} ← a_{i,j}^2` write `i j ‖ a dup × i j ‖ (b) ;`
 
 Note the use of the semicolon instruction `;`. This pops the printed value from the stack because the "name" symbol does not do it automatically.
@@ -96,9 +100,13 @@ The symbol `R` reads one number from STDIN and places it in the first vacant cel
 The symbol `(P)` prints the number at the top of the stack. It is written with parentheses to indicate that it does not pop from the stack
 
 For `x = 1 + nextNum()` write `R 1 + (x) ;`
+
 For `print(x)` write `x (P) ;`
+
 For `print(nextNum() + nextNum())` write `R R + (P) ;`
+
 For `x_{3}...x_{12} = [nextNum()for _ in range(10)]` write `3 12 R| (x) ;`
+
 For `map(print, [x_{3}...x{12}])` write `3 12 P| (x) ;`
 
 To read in a matrix of numbers `a_ij` to `a_mn` write `i m j n R‖ (a)`. The matrix is read or printed row by row, i.e. in the order `a_{i,j}, a_{i,j+1}, ... a_{i,n}, a_{i+1,j}, ... `
@@ -106,6 +114,7 @@ To read in a matrix of numbers `a_ij` to `a_mn` write `i m j n R‖ (a)`. The ma
 ### 1.6 Repetitive operations
 
 For `for (i=a; i<=b; i++) { exp(i) }`, write `a b rep (i) i exp ]`
+
 For example, you can print the first twenty square numbers by using `1, 20 rep (j) j j × (P) ; ]`
 
 To set `a_j = b_j^2` for each `j` from `1` to `n`, write `1 n rep (j) j | b dup × j | (a)`
@@ -131,7 +140,7 @@ For three simple program examples, see page 7 and 8 of the GEORGE Programming Ma
 
 These are like methods. Each must be numbered.
 
-For example, a subroutine to push the square root of the sum of squares of the two numbers at the top of the stack may be written as follows: `* 6 dup × rev dup × + .5 √`
+For example, a subroutine to push the square root of the sum of squares of the two numbers at the top of the stack may be written as follows: `* 6 dup × rev dup × + .5 √ ]`
 
 If this subroutine is attached to a program, it may be called by using the symbols `6 ↓`, which can be considered as a diadic operator, for example `a b 6 ↓ (P) ]` (Note that `]` must be used to end the program so that it does not carry on into subroutines.
 
@@ -151,7 +160,7 @@ For example, to infinitely read in pairs of number and print their sum, write
 * 0 R R + (P) ; 0 ↑
 ```
 
-Skips may also be conditional on the results of a calculation. For this purpose, there are two relational operators: `=` and `>`, and three logical operators: `~`, `&` and `∨`. A skip (either `↑` or `↓` is treated as conditional if one of the two relational operators occurs prior to it since the previous skip.
+Skips may also be conditional on the results of a calculation. For this purpose, there are two relational operators: `=` and `>`, and three logical operators: `~`, `&` and `∨`. A skip (either `↑` or `↓`) is treated as conditional if one of the two relational operators occurs prior to it since the previous skip.
 
 ```
 = equals
