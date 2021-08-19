@@ -1,8 +1,8 @@
 import parse, { Routine, Routines } from "./parser";
 
 export default function interpret(code: string) {
-  const routines = parse(code);
-  const int = new Interpreter(routines);
+  const program = parse(code);
+  const int = new Interpreter(program);
   int.fullExec();
 }
 
@@ -13,7 +13,6 @@ class Interpreter {
   matrix_mem: number[] = Array(32 * 32 * 4).fill(0);
   currentRoutine: Routine;
   programIndex: number = 0;
-  jmps: Map<number, number> = new Map();
   // true if `>` or `=` has been encountered since the last jmp
   isConditional = false;
 
@@ -24,7 +23,7 @@ class Interpreter {
   ok() {
     return (
       this.currentRoutine !== this.routines.main ||
-      this.programIndex < this.routines.main.length
+      this.programIndex < this.routines.main.actions.length
     );
   }
 
@@ -35,19 +34,13 @@ class Interpreter {
   }
 
   step() {
-    const action = this.currentRoutine[this.programIndex];
+    const action = this.currentRoutine.actions[this.programIndex];
     switch (action.type) {
       case "number":
         this.stack.push(action.value);
         break;
       case "operator":
         this.applyOperator(action.value);
-        break;
-      case "jmp_declare":
-        // NOTE:
-        // TODO: what is the correct behavior for duplicated `jmp_declare`s for a single label?
-        // TODO: what is the behavior for a clashing jmp in a submodule? Currently theres some overwriting
-        this.jmps.set(action.label, this.programIndex);
         break;
       case "access":
         if (action.suffix_count === 0) {
@@ -131,7 +124,7 @@ class Interpreter {
         // as the manual only states 0 → falsey and -1 → truthey
         // Even val&1 !== 0 would be appropriate
         if (!this.isConditional || this.stack.pop() !== 0) {
-          const skipLocation = this.jmps.get(skipLabel);
+          const skipLocation = this.currentRoutine.jmpIndices.get(skipLabel);
           if (skipLocation === undefined) {
             throw `No jmp location for label ${skipLabel}. I don't know where to jump. If your friends jump off a bridge, would you jump too?`;
           }

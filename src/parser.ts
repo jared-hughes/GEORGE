@@ -1,5 +1,6 @@
 import moo from "moo";
 import PeekableLexer from "moo-peekable-lexer";
+import { string } from "yargs";
 
 // prettier-ignore
 const operators = [
@@ -41,10 +42,6 @@ type Action =
       value: number;
     }
   | {
-      type: "jmp_declare";
-      label: number;
-    }
-  | {
       type: "print" | "read" | "assign" | "access";
       suffix_count: 0 | 1 | 2;
       letter: number;
@@ -60,7 +57,10 @@ type Action =
   | {
       type: "goto_sub_call";
     };
-export type Routine = Action[];
+export type Routine = {
+  actions: Action[];
+  jmpIndices: Map<number, number>;
+};
 export interface Routines {
   main: Routine;
   [k: string]: Routine;
@@ -109,7 +109,12 @@ export default function parse(code: string) {
 
   lexer.reset(code);
 
-  let routines: Routines = { main: [] };
+  let routines: Routines = {
+    main: {
+      actions: [],
+      jmpIndices: new Map(),
+    },
+  };
   let currentRoutine: Routine | null = routines.main;
   let isMainRoutine = true;
   let isPrevComma = false;
@@ -124,7 +129,10 @@ export default function parse(code: string) {
       if (tokenType === "asterisk") {
         // declare a subroutine
         const labelValue = parseLabelValue();
-        currentRoutine = [];
+        currentRoutine = {
+          actions: [],
+          jmpIndices: new Map(),
+        };
         routines[labelValue] = currentRoutine;
       } else {
         throw "Symbol outside routine";
@@ -134,32 +142,34 @@ export default function parse(code: string) {
       case "asterisk":
         // Subroutine declaration handled above
         const labelValue = parseLabelValue();
-        currentRoutine.push({
-          type: "jmp_declare",
-          label: labelValue,
-        });
+        currentRoutine.jmpIndices.set(
+          labelValue,
+          // pointer to index after the label
+          currentRoutine.actions.length - 1
+        );
         break;
       case "operator":
-        currentRoutine.push({
+        currentRoutine.actions.push({
           type: "operator",
           value: token.value,
         });
         break;
       case "number":
+        const actions = currentRoutine.actions;
         if (
-          currentRoutine?.length &&
-          currentRoutine[currentRoutine.length - 1].type === "number" &&
+          actions.length &&
+          actions[actions.length - 1].type === "number" &&
           !isPrevComma
         ) {
           throw "Oopsie, a comma is missing between two numbers";
         }
-        currentRoutine.push({
+        actions.push({
           type: "number",
           value: parseFloat(token.value),
         });
         break;
       case "RPpipe":
-        currentRoutine.push({
+        currentRoutine.actions.push({
           type: token.value[0] == "P" ? "print" : "read",
           suffix_count: pipeValue("token.value[1]") as 1 | 2,
           letter: parseName(),
@@ -169,7 +179,7 @@ export default function parse(code: string) {
         const val = pipeValue(token.value) as 1 | 2;
         if (peekNonWhitespace()?.type === "lparen") {
           // assignment
-          currentRoutine.push({
+          currentRoutine.actions.push({
             type: "assign",
             suffix_count: val,
             letter: parseName(),
@@ -177,7 +187,7 @@ export default function parse(code: string) {
         } else {
           const letterToken = nextNonWhitespace();
           if (letterToken?.type !== "letter") throw "Expected letter";
-          currentRoutine.push({
+          currentRoutine.actions.push({
             type: "access",
             suffix_count: val,
             letter: getLetterIndex(letterToken.value),
@@ -185,7 +195,7 @@ export default function parse(code: string) {
         }
         break;
       case "lparen":
-        currentRoutine.push({
+        currentRoutine.actions.push({
           type: "assign",
           suffix_count: 0,
           letter: parseName(true),
@@ -194,7 +204,7 @@ export default function parse(code: string) {
       case "rparen":
         throw "Unmatched right paren";
       case "letter":
-        currentRoutine.push({
+        currentRoutine.actions.push({
           type: "access",
           suffix_count: 0,
           letter: getLetterIndex(token.value),
@@ -202,17 +212,17 @@ export default function parse(code: string) {
         break;
       case "rep":
         const letter = parseName();
-        currentRoutine.push({
+        currentRoutine.actions.push({
           type: "rep_start",
           letter: letter,
         });
         // pointer to the index after the rep
-        repStack.push(currentRoutine.length);
+        repStack.push(currentRoutine.actions.length);
         break;
       case "rbracket":
         const top = repStack.pop();
         if (top !== undefined) {
-          currentRoutine.push({
+          currentRoutine.actions.push({
             type: "rep_end",
             goto: top,
           });
@@ -223,7 +233,7 @@ export default function parse(code: string) {
               throw "Unnecessary `]` closing the main routine. Perhaps a `rep` is not closed.";
             }
           } else {
-            currentRoutine.push({
+            currentRoutine.actions.push({
               type: "goto_sub_call",
             });
           }
