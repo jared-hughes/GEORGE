@@ -14,6 +14,8 @@ class Interpreter {
   currentRoutine: Routine;
   programIndex: number = 0;
   jmps: Map<number, number> = new Map();
+  // true if `>` or `=` has been encountered since the last jmp
+  isConditional = false;
 
   constructor(public routines: Routines) {
     this.currentRoutine = routines.main;
@@ -43,7 +45,6 @@ class Interpreter {
         break;
       case "jmp_declare":
         // NOTE:
-        // TODO: skip numbers are treated modulo 32
         // TODO: what is the correct behavior for duplicated `jmp_declare`s for a single label?
         // TODO: what is the behavior for a clashing jmp in a submodule? Currently theres some overwriting
         this.jmps.set(action.label, this.programIndex);
@@ -123,7 +124,20 @@ class Interpreter {
   applyOperator(op: string) {
     switch (op) {
       case "↑":
-        throw "The jmp operator ↑ is not yet implemented";
+        // skip numbers are treated modulo 32
+        this.assertMinStackSize(1);
+        const skipLabel = rem(this.stack.pop() as number, 32);
+        // Not sure how GEORGE is supposed to check truthiness in general
+        // as the manual only states 0 → falsey and -1 → truthey
+        // Even val&1 !== 0 would be appropriate
+        if (!this.isConditional || this.stack.pop() !== 0) {
+          const skipLocation = this.jmps.get(skipLabel);
+          if (skipLocation === undefined) {
+            throw `No jmp location for label ${skipLabel}. I don't know where to jump. If your friends jump off a bridge, would you jump too?`;
+          }
+          this.programIndex = skipLocation;
+        }
+        this.isConditional = false;
         break;
       case "↓":
         throw "The subroutine operator ↑ is not yet implemented";
@@ -164,6 +178,9 @@ class Interpreter {
         } else {
           throw "Programming Error: unhandled operator " + op;
         }
+    }
+    if (op === ">" || op === "=") {
+      this.isConditional = true;
     }
   }
 }
