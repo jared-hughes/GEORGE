@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "nearley": "^2.20.1"
+    "moo": "^0.5.1",
+    "moo-peekable-lexer": "^1.1.2"
   }
 }
