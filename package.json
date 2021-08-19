@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "moo": "^0.5.1",
-    "moo-peekable-lexer": "^1.1.2"
+    "moo-peekable-lexer": "^1.1.2",
+    "yargs": "^17.1.1"
   }
 }
