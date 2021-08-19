@@ -1,22 +1,22 @@
-const moo = require("moo");
-const PeekableLexer = require("moo-peekable-lexer");
+import moo from "moo";
+import PeekableLexer from "moo-peekable-lexer";
 
-const mooLexer = moo.compile({
+// prettier-ignore
+const operators = [
+  "-","+","×","÷",";","√","↑","↓",">","=","~","&","∨",
+  "neg","mod","max","dup","rev","log","exp","pow","rem","sin",
+  "cos","wait","R","(P)"
+]
+
+const tokenTable = {
   // Only [a-d] may be used for matrices
-  operator:
-    /[-+×÷;√↑↓>=~&∨]|neg|mod|max|dup|rev|log|exp|pow|rem|sin|cos|wait|R|\(P\)/,
+  operator: operators,
   rep: "rep",
-  number: {
-    match: /[1-9][0-9]*(?:\.[0-9]+)?|0/,
-    value: parseFloat,
-  },
+  number: /[1-9][0-9]*(?:\.[0-9]+)?|0/,
   comma: ",",
   rbracket: "]",
   RPpipe: /[RP][|‖]/,
-  pipe: {
-    match: /[|‖]/,
-    value: pipeValue,
-  },
+  pipe: /[|‖]/,
   asterisk: "*",
   lparen: "(",
   rparen: ")",
@@ -25,11 +25,48 @@ const mooLexer = moo.compile({
     lineBreaks: true,
   },
   letter: /[a-nΘp-zαβυλμω]/,
-});
+} as const;
+
+const mooLexer = moo.compile(tokenTable);
 
 const lexer = new PeekableLexer({ lexer: mooLexer });
 
-function parse(code) {
+type Action =
+  | {
+      type: "operator";
+      value: string;
+    }
+  | {
+      type: "number";
+      value: number;
+    }
+  | {
+      type: "jmp_declare";
+      label: number;
+    }
+  | {
+      type: "print" | "read" | "assign" | "access";
+      suffix_count: 0 | 1 | 2;
+      letter: string;
+    }
+  | {
+      type: "rep_start";
+      letter: string;
+    }
+  | {
+      type: "rep_end";
+      goto: number;
+    }
+  | {
+      type: "goto_sub_call";
+    };
+type Routine = Action[];
+interface Routines {
+  main: Routine;
+  [k: string]: Routine;
+}
+
+export default function parse(code: string) {
   function peekNonWhitespace() {
     let token = lexer.peek();
     while (token?.type === "whitespace") {
@@ -56,16 +93,24 @@ function parse(code) {
       if (nextNonWhitespace()?.type !== "lparen") throw "Expected name";
     }
     // We don't want to allow spaces, so use lexer.next() instead of next()
-    letter = lexer.next();
+    const letter = lexer.next();
     if (letter?.type !== "letter") throw "Expected letter";
     if (lexer.next()?.type !== "rparen") throw "Expected closing paren on name";
     return letter.value;
   }
 
+  function parseLabelValue() {
+    const labelToken = nextNonWhitespace();
+    if (labelToken?.type !== "number") {
+      throw "Label expects number following it";
+    }
+    return parseFloat(labelToken.value);
+  }
+
   lexer.reset(code);
 
-  let routines = { main: [] };
-  let currentRoutine = routines.main;
+  let routines: Routines = { main: [] };
+  let currentRoutine: Routine | null = routines.main;
   let isMainRoutine = true;
   let isPrevComma = false;
   // stack of indices to return to
@@ -74,10 +119,26 @@ function parse(code) {
   let token;
 
   while ((token = nextNonWhitespace(false))) {
-    if (currentRoutine === null && token.type !== "asterisk") {
-      throw "Symbol outside routine";
+    const tokenType = token.type as keyof typeof tokenTable;
+    if (currentRoutine === null) {
+      if (tokenType === "asterisk") {
+        // declare a subroutine
+        const labelValue = parseLabelValue();
+        currentRoutine = [];
+        routines[labelValue] = currentRoutine;
+      } else {
+        throw "Symbol outside routine";
+      }
     }
-    switch (token.type) {
+    switch (tokenType) {
+      case "asterisk":
+        // Subroutine declaration handled above
+        const labelValue = parseLabelValue();
+        currentRoutine.push({
+          type: "jmp_declare",
+          label: labelValue,
+        });
+        break;
       case "operator":
         currentRoutine.push({
           type: "operator",
@@ -94,49 +155,31 @@ function parse(code) {
         }
         currentRoutine.push({
           type: "number",
-          value: token.value,
+          value: parseFloat(token.value),
         });
-        break;
-      case "comma":
-        break;
-      case "asterisk":
-        labelToken = nextNonWhitespace();
-        if (labelToken.type !== "number") {
-          throw "Label expects number following it";
-        }
-        // TODO: maybe restrict label value
-        if (currentRoutine !== null) {
-          currentRoutine.push({
-            type: "jmp_declare",
-            label: labelToken.value,
-          });
-        } else {
-          // declare a subroutine
-          currentRoutine = [];
-          routines[labelToken.value] = currentRoutine;
-        }
         break;
       case "RPpipe":
         currentRoutine.push({
           type: token.value[0] == "P" ? "print" : "read",
-          suffix_count: pipeValue(token.value[1]),
+          suffix_count: pipeValue("token.value[1]") as 1 | 2,
           letter: parseName(),
         });
         break;
       case "pipe":
+        const val = pipeValue(token.value) as 1 | 2;
         if (peekNonWhitespace()?.type === "lparen") {
           // assignment
           currentRoutine.push({
             type: "assign",
-            suffix_count: pipeValue(token.value),
+            suffix_count: val,
             letter: parseName(),
           });
         } else {
-          letterToken = nextNonWhitespace();
-          if (letterToken.type !== "letter") throw "Expected letter";
+          const letterToken = nextNonWhitespace();
+          if (letterToken?.type !== "letter") throw "Expected letter";
           currentRoutine.push({
             type: "access",
-            suffix_count: pipeValue(token.value),
+            suffix_count: val,
             letter: letterToken.value,
           });
         }
@@ -167,10 +210,11 @@ function parse(code) {
         repStack.push(currentRoutine.length);
         break;
       case "rbracket":
-        if (repStack.length > 0) {
+        const top = repStack.pop();
+        if (top !== undefined) {
           currentRoutine.push({
             type: "rep_end",
-            goto: repStack.pop(),
+            goto: top,
           });
         } else if (currentRoutine) {
           if (isMainRoutine) {
@@ -186,6 +230,9 @@ function parse(code) {
           currentRoutine = null;
         }
         break;
+      case "comma":
+        // handled below
+        break;
     }
     isPrevComma = token.type === "comma";
   }
@@ -197,8 +244,10 @@ function parse(code) {
   return routines;
 }
 
-function pipeValue(pipe) {
-  return "|‖".indexOf(pipe) + 1;
+function pipeValue(pipe: string) {
+  if (pipe == "|") {
+    return 1;
+  } else if (pipe == "‖") {
+    return 2;
+  }
 }
-
-exports.default = parse;

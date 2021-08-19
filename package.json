@@ -2,15 +2,30 @@
   "name": "george_lang",
   "version": "0.1.0",
   "description": "G E O R G E",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "main": "dist/cli.js",
+  "bin": {
+    "GEORGE": "./dist/cli.js"
   },
-  "author": "",
+  "scripts": {
+    "build": "tsc --build",
+    "watch": "tsc -w"
+  },
+  "author": "Jared Hughes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jared-hughes/GEORGE.git"
+  },
   "license": "ISC",
   "dependencies": {
+    "@types/node": "^16.6.2",
+    "@types/yargs": "^17.0.2",
     "moo": "^0.5.1",
     "moo-peekable-lexer": "^1.1.2",
     "yargs": "^17.1.1"
+  },
+  "devDependencies": {
+    "@types/moo": "^0.5.5",
+    "prettier": "^2.3.2",
+    "typescript": "^4.3.5"
   }
 }
