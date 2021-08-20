@@ -1,14 +1,4 @@
-import { interpret, interpretToString } from "../src/interpreter";
-import { expect } from "chai";
-import { george } from "./mocha-george";
-
-function printsExactly(code: string, expected: string) {
-  expect(
-    interpretToString(code, {
-      limitLength: 12,
-    })
-  ).to.equal(expected);
-}
+import { george, printsExactly } from "./mocha-george";
 
 describe("Jumps", () => {
   george("can jump in a while loop", () => {
