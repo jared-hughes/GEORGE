@@ -59,7 +59,7 @@ For `(4.3)÷(16-x)` write `4.3, 16 x - ÷`
 
 ### 1.3 Variables
 
-An alphabet of 32 letters is provided, including `a-z` except `o` and some Greek letters: `abcdefghijklmnΘpqrstuvwxyzαβυλμω`
+An alphabet of 32 letters is provided, including `a-z` except `o` and some Greek letters: `abcdefghijklmnθpqrstuvwxyzαβυλμω`
 
 There are three separate ranges of storage locations:
 

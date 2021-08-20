@@ -1,6 +1,5 @@
 import moo, { Token } from "moo";
 import PeekableLexer from "moo-peekable-lexer";
-import { string } from "yargs";
 
 // prettier-ignore
 const operators = [
@@ -10,13 +9,13 @@ const operators = [
 ]
 
 const tokenTable = {
-  // Only [a-d] may be used for matrices
+  // RPpipe must be above operator to avoid tokenizing as `R` `|`
+  RPpipe: /[RP][|‖]/,
   operator: operators,
   rep: "rep",
   number: /[1-9][0-9]*(?:\.[0-9]+)?|0/,
   comma: ",",
   rbracket: "]",
-  RPpipe: /[RP][|‖]/,
   pipe: /[|‖]/,
   asterisk: "*",
   lparen: "(",
@@ -25,7 +24,8 @@ const tokenTable = {
     match: /\s/,
     lineBreaks: true,
   },
-  letter: /[a-nΘp-zαβγλμω]/,
+  // Only [a-d] may be used for matrices
+  letter: /[a-nθp-zαβγλμω]/,
 } as const;
 
 const mooLexer = moo.compile(tokenTable);
@@ -288,6 +288,9 @@ export default function parse(code: string) {
 
   if (currentRoutine !== null && currentRoutine !== routines.main) {
     throw eofError("subroutine");
+  }
+  if (repStack.length > 0) {
+    throw eofError("rep");
   }
 
   return routines;
