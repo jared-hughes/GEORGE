@@ -1,4 +1,4 @@
-import parse, { Routine, Routines } from "./parser";
+import parse, { Program } from "./parser";
 
 interface InterpreterOptions {
   stdout: boolean;
@@ -28,7 +28,7 @@ export function interpret(code: string, opts: InterpreterOptionsOpt) {
 }
 
 interface ProgramPointer {
-  currentRoutine: Routine;
+  currentRoutine: number | "main";
   programIndex: number;
 }
 
@@ -37,7 +37,7 @@ export class Interpreter {
   unsuffixed_mem: number[] = Array(32).fill(0);
   vector_mem: number[] = Array(32 * 32).fill(0);
   matrix_mem: number[] = Array(32 * 32 * 4).fill(0);
-  currentRoutine: Routine;
+  currentRoutine: number | "main" = "main";
   programIndex: number = 0;
   callStack: ProgramPointer[] = [];
   // true if `>` or `=` has been encountered since the last jmp
@@ -45,8 +45,9 @@ export class Interpreter {
   outputString = "";
   opts: InterpreterOptions;
   totalLength = 0;
+  done = false;
 
-  constructor(public routines: Routines, opts: InterpreterOptionsOpt) {
+  constructor(public program: Program, opts: InterpreterOptionsOpt) {
     this.opts = {
       stdout: opts.stdout ?? false,
       outputToString:
@@ -54,14 +55,10 @@ export class Interpreter {
         (opts.stdout !== undefined ? !opts.stdout : true),
       limitLength: opts.limitLength ?? 16384, // 16 kb
     };
-    this.currentRoutine = routines.main;
   }
 
   ok() {
-    const atEnd =
-      this.currentRoutine === this.routines.main &&
-      this.programIndex >= this.routines.main.actions.length;
-    return this.totalLength < this.opts.limitLength && !atEnd;
+    return this.totalLength < this.opts.limitLength && !this.done;
   }
 
   printLine(s: string) {
@@ -82,7 +79,7 @@ export class Interpreter {
   }
 
   step() {
-    const action = this.currentRoutine.actions[this.programIndex];
+    const action = this.program.actions[this.programIndex];
     switch (action.type) {
       case "number":
         this.stack.push(action.value);
@@ -143,13 +140,17 @@ export class Interpreter {
       case "rep_start":
       case "rep_end":
         throw "Execution of rep is not yet implemented";
-      case "goto_sub_call":
+      case "end_sub":
         const prev = this.callStack.pop();
         if (prev === undefined) {
           throw "Impossible situation: reached end of subroutine without entering subroutine";
         }
         this.currentRoutine = prev.currentRoutine;
         this.programIndex = prev.programIndex;
+        break;
+      case "end_main":
+        this.done = true;
+        break;
     }
     this.programIndex += 1;
   }
@@ -188,7 +189,7 @@ export class Interpreter {
       case "↑":
         skipLabel = this.getSkipLocation();
         if (this.shouldSkip()) {
-          const skipLocation = this.currentRoutine.jmpIndices.get(skipLabel);
+          const skipLocation = this.program.jmpIndices.get(skipLabel);
           if (skipLocation === undefined) {
             throw `No jmp location for label ${skipLabel}. I don't know where to jump. If your friends jump off a bridge, would you jump too?`;
           }
@@ -198,15 +199,14 @@ export class Interpreter {
       case "↓":
         skipLabel = this.getSkipLocation();
         if (this.shouldSkip()) {
-          if (skipLabel in this.routines) {
+          const ptr = this.program.subIndices.get(skipLabel);
+          if (ptr !== undefined) {
             this.callStack.push({
               currentRoutine: this.currentRoutine,
               programIndex: this.programIndex,
             });
-            // programIndex = -1 because it gets implemented at the end of the while loop
-            // and we need it to start at 0
-            this.programIndex = -1;
-            this.currentRoutine = this.routines[skipLabel];
+            this.programIndex = ptr;
+            this.currentRoutine = skipLabel;
           } else {
             throw `No subroutine exists with label ${skipLabel}`;
           }

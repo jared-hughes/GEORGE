@@ -55,17 +55,17 @@ type Action =
       goto: number;
     }
   | {
-      type: "goto_sub_call";
+      type: "end_sub";
+    }
+  | {
+      type: "end_main";
     };
-export type Routine = {
+
+export type Program = {
   actions: Action[];
   jmpIndices: Map<number, number>;
-  name: string;
+  subIndices: Map<number, number>;
 };
-export interface Routines {
-  main: Routine;
-  [k: string]: Routine;
-}
 
 export default function parse(code: string) {
   function parseError(token: Token, type: string) {
@@ -139,15 +139,12 @@ export default function parse(code: string) {
 
   lexer.reset(code);
 
-  let routines: Routines = {
-    main: {
-      actions: [],
-      jmpIndices: new Map(),
-      name: "main",
-    },
+  let program: Program = {
+    actions: [],
+    jmpIndices: new Map(),
+    subIndices: new Map(),
   };
-  let currentRoutine: Routine | null = routines.main;
-  let isMainRoutine = true;
+  let currentRoutine: "main" | null | number = "main";
   let isPrevComma = false;
   // stack of indices to return to
   let repStack = [];
@@ -157,36 +154,28 @@ export default function parse(code: string) {
   while ((token = nextNonWhitespace())) {
     const tokenType = token.type as keyof typeof tokenTable;
     if (tokenType === "asterisk") {
+      const labelValue = parseLabelValue();
+      // pointer to index after the label
+      const ptr = program.actions.length - 1;
       if (currentRoutine === null) {
         // declare a subroutine
-        const labelValue = parseLabelValue();
-        currentRoutine = {
-          actions: [],
-          jmpIndices: new Map(),
-          name: "" + labelValue,
-        };
-        routines[labelValue] = currentRoutine;
+        currentRoutine = labelValue;
+        program.subIndices.set(labelValue, ptr);
       } else {
-        // Subroutine declaration handled above
-        const labelValue = parseLabelValue();
-        currentRoutine.jmpIndices.set(
-          labelValue,
-          // pointer to index after the label
-          currentRoutine.actions.length - 1
-        );
+        program.jmpIndices.set(labelValue, ptr);
       }
     } else if (currentRoutine === null) {
       throw parseError(token, "Expected `*` to begin subroutine");
     }
     switch (tokenType) {
       case "operator":
-        currentRoutine.actions.push({
+        program.actions.push({
           type: "operator",
           value: token.value,
         });
         break;
       case "number":
-        const actions = currentRoutine.actions;
+        const actions = program.actions;
         if (
           actions.length &&
           actions[actions.length - 1].type === "number" &&
@@ -203,7 +192,7 @@ export default function parse(code: string) {
         });
         break;
       case "RPpipe":
-        currentRoutine.actions.push({
+        program.actions.push({
           type: token.value[0] == "P" ? "print" : "read",
           suffix_count: pipeValue("token.value[1]") as 1 | 2,
           letter: parseName(),
@@ -213,7 +202,7 @@ export default function parse(code: string) {
         const val = pipeValue(token.value) as 1 | 2;
         if (peekNonWhitespace()?.type === "lparen") {
           // assignment
-          currentRoutine.actions.push({
+          program.actions.push({
             type: "assign",
             suffix_count: val,
             letter: parseName(),
@@ -223,7 +212,7 @@ export default function parse(code: string) {
           if (letterToken?.type !== "letter") {
             throw parseError(letterToken, "Expected letter");
           }
-          currentRoutine.actions.push({
+          program.actions.push({
             type: "access",
             suffix_count: val,
             letter: getLetterIndex(letterToken.value),
@@ -231,7 +220,7 @@ export default function parse(code: string) {
         }
         break;
       case "lparen":
-        currentRoutine.actions.push({
+        program.actions.push({
           type: "assign",
           suffix_count: 0,
           letter: parseName(true),
@@ -240,7 +229,7 @@ export default function parse(code: string) {
       case "rparen":
         throw parseError(token, "Unmatched right paren");
       case "letter":
-        currentRoutine.actions.push({
+        program.actions.push({
           type: "access",
           suffix_count: 0,
           letter: getLetterIndex(token.value),
@@ -248,32 +237,35 @@ export default function parse(code: string) {
         break;
       case "rep":
         const letter = parseName();
-        currentRoutine.actions.push({
+        program.actions.push({
           type: "rep_start",
           letter: letter,
         });
         // pointer to the index after the rep
-        repStack.push(currentRoutine.actions.length);
+        repStack.push(program.actions.length);
         break;
       case "rbracket":
         const top = repStack.pop();
         if (top !== undefined) {
-          currentRoutine.actions.push({
+          program.actions.push({
             type: "rep_end",
             goto: top,
           });
-        } else if (currentRoutine) {
-          if (isMainRoutine) {
-            isMainRoutine = false;
+        } else if (currentRoutine !== null) {
+          if (currentRoutine === "main") {
             if (lexer.peek() === undefined) {
               throw parseError(
                 token,
                 "Unnecessary `]` closing the main routine. Probably a `rep` is not closed."
               );
+            } else {
+              program.actions.push({
+                type: "end_main",
+              });
             }
           } else {
-            currentRoutine.actions.push({
-              type: "goto_sub_call",
+            program.actions.push({
+              type: "end_sub",
             });
           }
           currentRoutine = null;
@@ -286,14 +278,17 @@ export default function parse(code: string) {
     isPrevComma = token.type === "comma";
   }
 
-  if (currentRoutine !== null && currentRoutine !== routines.main) {
+  if (currentRoutine === "main") {
+    program.actions.push({
+      type: "end_main",
+    });
+  } else if (currentRoutine !== null) {
     throw eofError("subroutine");
   }
   if (repStack.length > 0) {
     throw eofError("rep");
   }
-
-  return routines;
+  return program;
 }
 
 function pipeValue(pipe: string) {
