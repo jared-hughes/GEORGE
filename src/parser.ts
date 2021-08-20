@@ -13,7 +13,7 @@ const tokenTable = {
   RPpipe: /[RP][|‖]/,
   operator: operators,
   rep: "rep",
-  number: /[1-9][0-9]*(?:\.[0-9]+)?|0/,
+  number: /[0-9]+(?:\.[0-9]+)?/,
   comma: ",",
   rbracket: "]",
   pipe: /[|‖]/,

@@ -1,9 +1,14 @@
 import parse, { Routine, Routines } from "./parser";
 
-export default function interpret(code: string) {
+export function interpretToString(code: string) {
+  return interpret(code, true).outputString;
+}
+
+export function interpret(code: string, outputToString: boolean = true) {
   const program = parse(code);
-  const int = new Interpreter(program);
+  const int = new Interpreter(program, outputToString);
   int.fullExec();
+  return int;
 }
 
 interface ProgramPointer {
@@ -11,7 +16,7 @@ interface ProgramPointer {
   programIndex: number;
 }
 
-class Interpreter {
+export class Interpreter {
   stack: number[] = [];
   unsuffixed_mem: number[] = Array(32).fill(0);
   vector_mem: number[] = Array(32 * 32).fill(0);
@@ -21,8 +26,9 @@ class Interpreter {
   callStack: ProgramPointer[] = [];
   // true if `>` or `=` has been encountered since the last jmp
   isConditional = false;
+  outputString = "";
 
-  constructor(public routines: Routines) {
+  constructor(public routines: Routines, public outputToString: boolean) {
     this.currentRoutine = routines.main;
   }
 
@@ -31,6 +37,14 @@ class Interpreter {
       this.currentRoutine !== this.routines.main ||
       this.programIndex < this.routines.main.actions.length
     );
+  }
+
+  printLine(s: string) {
+    if (this.outputToString) {
+      this.outputString += s + "\n";
+    } else {
+      console.log(s);
+    }
   }
 
   fullExec() {
@@ -84,7 +98,7 @@ class Interpreter {
         break;
       case "print":
         if (action.suffix_count === 0) {
-          console.log(this.unsuffixed_mem[action.letter]);
+          this.printLine("" + this.unsuffixed_mem[action.letter]);
         } else {
           throw "Suffixed (vector or matrix) print is not yet implemented";
         }
@@ -191,7 +205,7 @@ class Interpreter {
         break;
       case "(P)":
         this.assertMinStackSize(1, op);
-        console.log(this.stackPeekN(1));
+        this.printLine("" + this.stackPeekN(1));
         break;
       default:
         if (op in monadicOperators) {
@@ -230,7 +244,7 @@ const dyadicOperators: { [K: string]: (a: number, b: number) => number } = {
 };
 
 const monadicOperators: { [K: string]: (a: number) => number } = {
-  "√": (a) => a,
+  "√": (a) => Math.sqrt(a),
   "~": (a) => ~a,
   neg: (a) => -a,
   mod: (a) => Math.abs(a),
