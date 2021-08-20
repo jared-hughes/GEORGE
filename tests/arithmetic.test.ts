@@ -93,12 +93,12 @@ describe("Logical operations", () => {
 
 describe("Stack Management", () => {
   george("drops top of stack using `;`", () => {
-    expect(interpret("1 ;", true).stack.length).to.equal(0);
-    expect(interpret("1,2,3 ;", true).stack.length).to.equal(2);
+    expect(interpret("1 ;", { stdout: false }).stack.length).to.equal(0);
+    expect(interpret("1,2,3 ;", { stdout: false }).stack.length).to.equal(2);
     computes("1,2,99 ; +", "3");
   });
   george("duplicates top of stack using `dup`", () => {
-    expect(interpret("1 dup", true).stack.length).to.equal(2);
+    expect(interpret("1 dup", { stdout: false }).stack.length).to.equal(2);
     computes("3 dup ×", "9");
   });
   george("reverses using `rev`", () => {

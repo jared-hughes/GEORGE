@@ -1,12 +1,28 @@
 import parse, { Routine, Routines } from "./parser";
 
-export function interpretToString(code: string) {
-  return interpret(code, true).outputString;
+interface InterpreterOptions {
+  stdout: boolean;
+  outputToString: boolean;
+  limitLength: number;
 }
 
-export function interpret(code: string, outputToString: boolean = true) {
+type InterpreterOptionsOpt = {
+  [K in keyof InterpreterOptions]?: InterpreterOptions[K];
+};
+
+export function interpretToString(
+  code: string,
+  opts: InterpreterOptionsOpt = {}
+) {
+  return interpret(code, {
+    ...opts,
+    outputToString: true,
+  }).outputString;
+}
+
+export function interpret(code: string, opts: InterpreterOptionsOpt) {
   const program = parse(code);
-  const int = new Interpreter(program, outputToString);
+  const int = new Interpreter(program, opts);
   int.fullExec();
   return int;
 }
@@ -27,24 +43,36 @@ export class Interpreter {
   // true if `>` or `=` has been encountered since the last jmp
   isConditional = false;
   outputString = "";
+  opts: InterpreterOptions;
+  totalLength = 0;
 
-  constructor(public routines: Routines, public outputToString: boolean) {
+  constructor(public routines: Routines, opts: InterpreterOptionsOpt) {
+    this.opts = {
+      stdout: opts.stdout ?? false,
+      outputToString:
+        opts.outputToString ??
+        (opts.stdout !== undefined ? !opts.stdout : true),
+      limitLength: opts.limitLength ?? 16384, // 16 kb
+    };
     this.currentRoutine = routines.main;
   }
 
   ok() {
-    return (
-      this.currentRoutine !== this.routines.main ||
-      this.programIndex < this.routines.main.actions.length
-    );
+    const atEnd =
+      this.currentRoutine === this.routines.main &&
+      this.programIndex >= this.routines.main.actions.length;
+    return this.totalLength < this.opts.limitLength && !atEnd;
   }
 
   printLine(s: string) {
-    if (this.outputToString) {
+    if (this.opts.outputToString) {
       this.outputString += s + "\n";
-    } else {
+    }
+    if (this.opts.stdout) {
       console.log(s);
     }
+    // +1 for newline
+    this.totalLength += s.length + 1;
   }
 
   fullExec() {

@@ -20,4 +20,4 @@ const options: Arguments = yargs(process.argv.slice(2))
   .usage("Example usage: node cli.js -c '2, 3 + (P)'")
   .parseSync();
 
-interpret(options.cmd, false);
+interpret(options.cmd, { stdout: true });
