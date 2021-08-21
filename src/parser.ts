@@ -208,7 +208,7 @@ export default function parse(code: string) {
         ) {
           throw parseError(
             token,
-            "GEORGE has no need for spaces. GEORGE expects a comma between adjacent numbers"
+            "GEORGE has no need for whitespace. GEORGE expects a comma between adjacent numbers"
           );
         }
         actions.push({

@@ -104,34 +104,34 @@ export class Interpreter {
         if (action.suffix_count === 0) {
           this.stack.push(this.unsuffixed_mem[action.letter]);
         } else if (action.suffix_count === 1) {
-          this.assertMinStackSize(1),
+          this.assertMinStackSize(1);
+          this.stack.push(
             this.vector_mem[
               getVectorIndex(action.letter, this.stack.pop() as number)
-            ];
+            ]
+          );
         } else {
           this.assertMinStackSize(2);
           const j = this.stack.pop() as number;
           const i = this.stack.pop() as number;
-          this.matrix_mem[getMatrixIndex(action.letter, i, j)];
+          this.stack.push(this.matrix_mem[getMatrixIndex(action.letter, i, j)]);
         }
         break;
       case "assign":
         if (action.suffix_count === 0) {
           this.assertMinStackSize(1);
-          this.unsuffixed_mem[action.letter] = this.stackPeekN(1);
+          this.unsuffixed_mem[action.letter] = this.stackPeek();
         } else if (action.suffix_count === 1) {
           this.assertMinStackSize(2);
-          this.vector_mem[getVectorIndex(action.letter, this.stackPeekN(1))] =
-            this.stackPeekN(2);
+          this.vector_mem[
+            getVectorIndex(action.letter, this.stack.pop() as number)
+          ] = this.stackPeek();
         } else {
           this.assertMinStackSize(3);
-          this.matrix_mem[
-            getMatrixIndex(
-              action.letter,
-              this.stackPeekN(2),
-              this.stackPeekN(1)
-            )
-          ] = this.stackPeekN(3);
+          const j = this.stack.pop() as number;
+          const i = this.stack.pop() as number;
+          this.matrix_mem[getMatrixIndex(action.letter, i, j)] =
+            this.stackPeek();
         }
         break;
       case "print":
@@ -202,7 +202,7 @@ export class Interpreter {
     }
   }
 
-  stackPeekN(n: number) {
+  stackPeek(n: number = 1) {
     return this.stack[this.stack.length - n];
   }
 
@@ -256,7 +256,7 @@ export class Interpreter {
         break;
       case "dup":
         this.assertMinStackSize(1, op);
-        this.stack.push(this.stackPeekN(1));
+        this.stack.push(this.stackPeek());
         break;
       case "rev":
         this.assertMinStackSize(2, op);
@@ -271,7 +271,7 @@ export class Interpreter {
         break;
       case "(P)":
         this.assertMinStackSize(1, op);
-        this.printLine("" + this.stackPeekN(1));
+        this.printLine("" + this.stackPeek());
         break;
       default:
         if (op in monadicOperators) {
