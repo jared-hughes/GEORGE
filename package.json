@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc --build",
     "watch": "tsc -w",
-    "test": "mocha -r ts-node/register 'tests/**/*.test.ts'"
+    "test": "mocha -r ts-node/register 'tests/tests.ts'"
   },
   "author": "Jared Hughes",
   "repository": {

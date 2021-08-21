@@ -2,7 +2,7 @@ import { george, printsExactly } from "./mocha-george";
 
 describe("Jumps", () => {
   george("can jump in a while loop", () => {
-    printsExactly("*0 1 (P) 0↑", "1\n".repeat(6));
+    printsExactly("*0 1 (P) 0↑", "1\n".repeat(8));
   });
   george("can jump to later labels", () => {
     printsExactly("2↑ 73(P) *2 42(P)", "42\n");

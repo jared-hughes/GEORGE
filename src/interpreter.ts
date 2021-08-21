@@ -31,7 +31,6 @@ interface ProgramPointer {
   currentRoutine: number | "main";
   programIndex: number;
 }
-
 export class Interpreter {
   stack: number[] = [];
   unsuffixed_mem: number[] = Array(32).fill(0);
@@ -46,6 +45,11 @@ export class Interpreter {
   opts: InterpreterOptions;
   totalLength = 0;
   done = false;
+  repStack: {
+    letter: number;
+    max: number;
+    startIndex: number;
+  }[] = [];
 
   constructor(public program: Program, opts: InterpreterOptionsOpt) {
     this.opts = {
@@ -138,8 +142,33 @@ export class Interpreter {
       //   throw "Suffixed (vector or matrix) read is not yet implemented";
       // }
       case "rep_start":
+        this.assertMinStackSize(2, "rep");
+        const max = this.stack.pop() as number;
+        const init = this.stack.pop() as number;
+        const letter = action.letter;
+        this.unsuffixed_mem[letter] = init;
+        if (!Number.isInteger(max) || !Number.isInteger(init)) {
+          throw `GEORGE requires rep bounds to be integers.`;
+        }
+        if (max <= init) {
+          throw `Rep max must be greater than init. Or not? Idk. Either way, GEORGE will not let you proceed with \`${init}, ${max} rep\`.`;
+        }
+        this.repStack.push({
+          letter,
+          max,
+          startIndex: this.programIndex,
+        });
+        break;
       case "rep_end":
-        throw "Execution of rep is not yet implemented";
+        const rep = this.repStack[this.repStack.length - 1];
+        if (this.unsuffixed_mem[rep.letter] < rep.max) {
+          this.unsuffixed_mem[rep.letter] += 1;
+          this.programIndex = rep.startIndex;
+        } else {
+          // move on
+          this.repStack.pop();
+        }
+        break;
       case "end_sub":
         const prev = this.callStack.pop();
         if (prev === undefined) {
