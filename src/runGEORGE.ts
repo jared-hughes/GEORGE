@@ -21,5 +21,6 @@ export default function runGEORGE(args: string[], opts: InterpreterOptionsOpt) {
     .usage("Example usage: node cli.js -c '2, 3 + (P)'")
     .parseSync();
 
-  interpret(options.cmd, opts);
+  const int = interpret(options.cmd, opts);
+  return int.outputString;
 }
