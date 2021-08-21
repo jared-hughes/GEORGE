@@ -6,7 +6,7 @@ interface InterpreterOptions {
   limitLength: number;
 }
 
-type InterpreterOptionsOpt = {
+export type InterpreterOptionsOpt = {
   [K in keyof InterpreterOptions]?: InterpreterOptions[K];
 };
 
