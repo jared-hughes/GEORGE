@@ -67,19 +67,44 @@ export type Program = {
   subIndices: Map<number, number>;
 };
 
+class StacklessError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.stack = "";
+  }
+}
+
+class ParseError extends StacklessError {
+  constructor(msg: string) {
+    super(msg);
+    this.name = this.constructor.name;
+  }
+}
+
+class EOFError extends StacklessError {
+  constructor(msg: string) {
+    super(msg);
+    this.name = this.constructor.name;
+  }
+}
+
 export default function parse(code: string) {
-  function parseError(token: Token, type: string) {
-    return new Error(lexer.formatError(token, type));
+  function parseError(token: Token, msg: string) {
+    return new ParseError("\n\n" + lexer.formatError(token, msg) + "\n");
   }
 
   function eofError(parsing?: string) {
-    return new Error(`EOF while parsing ${parsing || "something"}.`);
+    return new EOFError(
+      `\n\nGEORGE reached the end of the code while parsing a ${
+        parsing ?? "something"
+      }.\n`
+    );
   }
 
   function nextRequired(parsing?: string) {
     const token = lexer.next();
     if (token === undefined) {
-      throw eofError(parsing);
+      throw eofError("parsing");
     }
     return token;
   }
@@ -114,17 +139,17 @@ export default function parse(code: string) {
     if (!skipLParen) {
       const lparen = nextNonWhitespaceRequired("name");
       if (lparen?.type !== "lparen") {
-        throw parseError(lparen, "Expected `(` starting a name");
+        throw parseError(lparen, "GEORGE expected `(` starting a name");
       }
     }
     // We don't want to allow spaces, so use nextRequired() instead of nextNonWhitespaceRequired()
     const letter = nextRequired("name");
     if (letter.type !== "letter") {
-      throw parseError(letter, "Expected letter in name");
+      throw parseError(letter, "GEORGE expected letter in name");
     }
     const rparen = nextRequired("name");
     if (rparen.type !== "rparen") {
-      throw parseError(rparen, "Expected `)` closing a name");
+      throw parseError(rparen, "GEORGE expected `)` closing a name");
     }
     return getLetterIndex(letter.value);
   }
@@ -132,7 +157,7 @@ export default function parse(code: string) {
   function parseLabelValue() {
     const labelToken = nextNonWhitespaceRequired("label");
     if (labelToken?.type !== "number") {
-      throw parseError(labelToken, "Label requires a number");
+      throw parseError(labelToken, "GEORGE mandates a number in this label");
     }
     return parseFloat(labelToken.value);
   }
@@ -165,7 +190,7 @@ export default function parse(code: string) {
         program.jmpIndices.set(labelValue, ptr);
       }
     } else if (currentRoutine === null) {
-      throw parseError(token, "Expected `*` to begin subroutine");
+      throw parseError(token, "GEORGE expected a subroutine starting with `*`");
     }
     switch (tokenType) {
       case "operator":
@@ -183,7 +208,7 @@ export default function parse(code: string) {
         ) {
           throw parseError(
             token,
-            "Oopsie, a comma is missing between two numbers"
+            "GEORGE has no need for spaces. GEORGE expects a comma between adjacent numbers"
           );
         }
         actions.push({
@@ -208,9 +233,12 @@ export default function parse(code: string) {
             letter: parseName(),
           });
         } else {
-          const letterToken = nextNonWhitespaceRequired();
+          const letterToken = nextNonWhitespaceRequired("pipe access");
           if (letterToken?.type !== "letter") {
-            throw parseError(letterToken, "Expected letter");
+            throw parseError(
+              letterToken,
+              "GEORGE expected a letter after this pipe"
+            );
           }
           program.actions.push({
             type: "access",
@@ -227,7 +255,10 @@ export default function parse(code: string) {
         });
         break;
       case "rparen":
-        throw parseError(token, "Unmatched right paren");
+        throw parseError(
+          token,
+          "GEORGE found a right paren without a matching friend"
+        );
       case "letter":
         program.actions.push({
           type: "access",
