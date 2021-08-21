@@ -3,7 +3,8 @@ import parse, { Program } from "./parser";
 interface InterpreterOptions {
   stdout: boolean;
   outputToString: boolean;
-  limitLength: number;
+  lengthLimit: number;
+  timeLimit: number; // ms
 }
 
 export type InterpreterOptionsOpt = {
@@ -44,25 +45,33 @@ export class Interpreter {
   outputString = "";
   opts: InterpreterOptions;
   totalLength = 0;
-  done = false;
   repStack: {
     letter: number;
     max: number;
     startIndex: number;
   }[] = [];
+  stopReason: null | "DONE" | "LENGTH" | "TIME" = null;
+  startTime: number;
 
   constructor(public program: Program, opts: InterpreterOptionsOpt) {
+    this.startTime = Date.now();
     this.opts = {
       stdout: opts.stdout ?? false,
       outputToString:
         opts.outputToString ??
         (opts.stdout !== undefined ? !opts.stdout : true),
-      limitLength: opts.limitLength ?? 16384, // 16 kb
+      lengthLimit: opts.lengthLimit ?? 16384, // 16 kb
+      timeLimit: opts.timeLimit ?? 2000, // 2s
     };
   }
 
-  ok() {
-    return this.totalLength < this.opts.limitLength && !this.done;
+  checkOK() {
+    if (this.totalLength >= this.opts.lengthLimit) {
+      this.stopReason = "LENGTH";
+    }
+    if (Date.now() - this.startTime > this.opts.timeLimit) {
+      this.stopReason = "TIME";
+    }
   }
 
   printLine(s: string) {
@@ -77,7 +86,7 @@ export class Interpreter {
   }
 
   fullExec() {
-    while (this.ok()) {
+    while ((this.checkOK(), this.stopReason === null)) {
       this.step();
     }
   }
@@ -178,7 +187,7 @@ export class Interpreter {
         this.programIndex = prev.programIndex;
         break;
       case "end_main":
-        this.done = true;
+        this.stopReason = "DONE";
         break;
     }
     this.programIndex += 1;

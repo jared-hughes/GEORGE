@@ -8,7 +8,7 @@ export function george(name: string, ...rest: any[]) {
 export function printsExactly(code: string, expected: string) {
   expect(
     interpretToString(code, {
-      limitLength: 16,
+      lengthLimit: 16,
     })
   ).to.equal(expected);
 }
