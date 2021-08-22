@@ -10,7 +10,7 @@
     "tsc": "tsc",
     "postinstall": "npm run build",
     "build": "npm run tsc --build",
-    "watch": "npm run tsc -w",
+    "watch": "tsc -w",
     "test": "mocha -r ts-node/register 'tests/tests.ts'"
   },
   "author": "Jared Hughes",

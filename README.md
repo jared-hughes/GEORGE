@@ -1,16 +1,24 @@
 # GEORGE language
 
-Quick implementation based on https://en.wikipedia.org/wiki/GEORGE_(programming_language) and http://members.iinet.net.au/~dgreen/deuce/GEORGEProgrammingManual.pdf.
+An implementation of the GEORGE programming language (http://members.iinet.net.au/~dgreen/deuce/GEORGEProgrammingManual.pdf).
 
 The language name should always be stylized as GEORGE -- or G E O R G E if you're feeling funky.
 
 The GEORGE language uses some non-ASCII unicode characters. For your convenience and until a GEORGE keyboard layout exists, `GEORGE.xcompose` is provided with compose key bindings. If you're on Windows, you will want to install [WinCompose](http://wincompose.info/) to use this; otherwise, just include the file in your `~/.XCompose`. Changes should apply after restarting the input method (a reboot works well).
 
+A few differences from GEORGE Ia:
+
+- Programming is through unicode text, not punch cards, so parsing is slightly different. GEORGE does not currently use a [SBCS](https://en.wikipedia.org/wiki/SBCS)
+- Output is through text/stdout, not punch cards
+- Input (not yet implemented) is through text/stdin, not punch cards
+- The `I` and `wait` instructions are not implemented
+- GEORGE does not have some of GEORGE Ia's limitations such as a 12 cell accumulator (value stack), 6 entry call stack, 512 symbols, etc. GEORGE does have the same RAM limitation of 32 letter cells, 1024 single-suffixed (vector) cells, and 4096 double-suffixed (matrix) cells.
+  - I am considering making "strict mode" that maintains these limitations
+- GEORGE uses JavaScript's 64-bit floats with 53 bits mantissa instead of 32-bit floats with 22 bits mantissa
+
 ---
 
-Notes from reading the GEORGE Programming Manual:
-
-This is called G-code, for GEORGE-code presumably
+# Notes from the GEORGE Programming Manual:
 
 ## 1. Programming
 
