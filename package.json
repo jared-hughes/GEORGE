@@ -7,9 +7,10 @@
     "GEORGE": "./dist/cli.js"
   },
   "scripts": {
+    "tsc": "tsc",
     "postinstall": "npm run build",
-    "build": "tsc --build",
-    "watch": "tsc -w",
+    "build": "npm run tsc --build",
+    "watch": "npm run tsc -w",
     "test": "mocha -r ts-node/register 'tests/tests.ts'"
   },
   "author": "Jared Hughes",
